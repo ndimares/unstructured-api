@@ -19,6 +19,40 @@ import tempfile
 MAIN_API_ROUTE = "general/v0/general"
 
 
+import json
+
+def test_openapi_spec():
+
+    # the file to be converted to 
+    # json format
+    target_oas = 'test_general/api/target-oas.json'
+    fastapi_oas = 'test_general/api/fastapi-oas.json'
+
+    # dictionary where the lines from
+    # text will be stored
+    # target_oas_dict = {}
+    # fastapi_oas_dict = {}
+
+    # open file
+    # get json
+
+    with open(target_oas) as file:
+        target_oas_dict = json.load(file)
+
+    with open(fastapi_oas) as file:
+        fastapi_oas_dict = json.load(file)
+
+    print(target_oas_dict)
+
+    # assert target_oas_dict == fastapi_oas_dict
+    assert target_oas_dict['info']['summary'] == fastapi_oas_dict['info']['summary']
+    assert target_oas_dict['servers'] == fastapi_oas_dict['servers']
+    assert target_oas_dict['x-speakeasy-retries'] == fastapi_oas_dict['x-speakeasy-retries']
+    assert target_oas_dict['security'] == fastapi_oas_dict['security']
+    assert target_oas_dict['tags'] == fastapi_oas_dict['tags']
+
+
+
 def test_general_api_health_check():
     client = TestClient(app)
     response = client.get("/healthcheck")
