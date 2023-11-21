@@ -110,28 +110,28 @@
                         "format": "binary",
                         "description": "The file to extract",
                         "required": "true",
-                        "example": {
+                        "examples": [{
                             "summary": "File to be partitioned",
                             "externalValue": "https://github.com/Unstructured-IO/unstructured/blob/98d3541909f64290b5efb65a226fc3ee8a7cc5ee/example-docs/layout-parser-paper.pdf"
-                        }
+                        }]
                     },
                     "strategy": {
                         "type": "string",
                         "title": "Strategy",
                         "description": "The strategy to use for partitioning PDF/image. Options are fast, hi_res, auto. Default: auto",
-                        "example": "hi_res"
+                        "examples": ["hi_res"]
                     },
                     "gz_uncompressed_content_type": {
                         "type": "string",
                         "title": "Uncompressed Content Type",
                         "description": "If file is gzipped, use this content type after unzipping",
-                        "example": "application/pdf"
+                        "examples": ["application/pdf"]
                     },
                     "output_format": {
                         "type": "string",
                         "title": "Output Format",
                         "description": "The format of the response. Supported formats are application/json and text/csv. Default: application/json.",
-                        "example": "application/json"
+                        "examples": ["application/json"]
                     },
                     "coordinates": {
                         "type": "boolean",
@@ -142,13 +142,13 @@
                         "type": "string",
                         "title": "Encoding",
                         "description": "The encoding method used to decode the text input. Default: utf-8",
-                        "example": "utf-8"
+                        "examples": ["utf-8"]
                     },
                     "hi_res_model_name": {
                         "type": "string",
                         "title": "Hi Res Model Name",
                         "description": "The name of the inference model used when strategy is hi_res",
-                        "example": "yolox"
+                        "examples": ["yolox"]
                     },
                     "include_page_breaks": {
                         "type": "boolean",
@@ -158,13 +158,13 @@
                     "languages": {
                         "items": {
                             "type": "string",
-                            "example": "eng"
+                            "examples": ["eng"]
                         },
                         "type": "array",
                         "title": "OCR Languages",
                         "default": [],
                         "description": "The languages present in the document, for use in partitioning and/or OCR",
-                        "example": "[eng]"
+                        "examples": ["[eng]"]
                     },
                     "pdf_infer_table_structure": {
                         "type": "boolean",
@@ -174,7 +174,7 @@
                     "skip_infer_table_types": {
                         "items": {
                             "type": "string",
-                            "example": "pdf"
+                            "examples": ["pdf"]
                         },
                         "type": "array",
                         "title": "Skip Infer Table Types",
@@ -189,7 +189,7 @@
                         "type": "string",
                         "title": "Chunking Strategy",
                         "description": "Use one of the supported strategies to chunk the returned elements. Currently supports: by_title",
-                        "example": "by_title"
+                        "examples": ["by_title"]
                     },
                     "multipage_sections": {
                         "type": "boolean",
@@ -200,19 +200,19 @@
                         "type": "integer",
                         "title": "Combine Under N Chars",
                         "description": "If chunking strategy is set, combine elements until a section reaches a length of n chars. Default: 500",
-                        "example": 500
+                        "examples": [500]
                     },
                     "new_after_n_chars": {
                         "type": "integer",
                         "title": "New after n chars",
                         "description": "If chunking strategy is set, cut off new sections after reaching a length of n chars (soft max). Default: 1500",
-                        "example": 1500
+                        "examples": [1500]
                     },
                     "max_characters": {
                         "type": "integer",
                         "title": "Max Characters",
                         "description": "If chunking strategy is set, cut off new sections after reaching a length of n chars (hard max). Default: 1500",
-                        "example": 1500
+                        "examples": [1500]
                     }
                 },
                 "type": "object",

@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, status, HTTPException
+from fastapi import FastAPI, Request, status, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-
+from fastapi.routing import APIRoute
 from fastapi.openapi.utils import get_openapi
-
+from pydantic import BaseModel, Field
+from typing import List
 import logging
 import os
 
@@ -13,7 +14,7 @@ logger = logging.getLogger("unstructured_api")
 
 app = FastAPI(
     title="Unstructured Pipeline API",
-    description="API for the Unstructured Pipeline",
+    summary="Partition documents with the Unstructured library",
     version="0.0.57",
     docs_url="/general/docs",
     openapi_url="/general/openapi.json",
@@ -29,6 +30,7 @@ app = FastAPI(
             "x-speakeasy-server-id": "local"
         }
     ],
+    openapi_tags=[{"name": "general"}],
 )
 
 # Note(austin) - This logger just dumps exceptions
@@ -81,10 +83,11 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 logging.getLogger("uvicorn.access").addFilter(MetricsCheckFilter())
 
 
-@app.get("/healthcheck", status_code=status.HTTP_200_OK, include_in_schema=False)
+@app.get("/healthcheck", status_code=status.HTTP_200_OK, include_in_schema=False,)
 def healthcheck(request: Request):
     return {"healthcheck": "HEALTHCHECK STATUS: EVERYTHING OK!"}
 
+# OpenAPI spec customizations
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -94,8 +97,14 @@ def custom_openapi():
         version=app.version,
         summary=app.summary,
         description=app.description,
+        servers=app.servers,
         routes=app.routes,
+        tags=app.openapi_tags,
+        
     )
+
+    # Add security
+    openapi_schema["security"] = [{"ApiKeyAuth":[]}]
 
     # Add retries
     openapi_schema["x-speakeasy-retries"] = {
@@ -107,10 +116,159 @@ def custom_openapi():
             "exponent": 1.5,
         },
         "statusCodes": [
-            "5XX",
+            "5xx",
         ],
         "retryConnectionErrors": True,
     }
+
+    # Path changes
+    # Update the $ref in paths
+    openapi_schema["paths"]["/general/v0/general"]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"] = "#/components/schemas/partition_parameters"
+    openapi_schema["paths"]["/general/v0/general"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]= {"$ref": "#/components/schemas/Elements"}
+
+    # Schema changes
+    
+    # Add securitySchemes
+    # TODO: Implement security per the FastAPI documentation:
+    # https://fastapi.tiangolo.com/reference/security/?h=apikey
+    openapi_schema["components"]["securitySchemes"] = {
+    "ApiKeyAuth":{
+        "type":"apiKey",
+        "name":"unstructured-api-key",
+        "in":"header",
+        "x-speakeasy-example": "YOUR_API_KEY"}}
+    
+    # TODO: Instead of a list of paramaters, creted a PartitionParameters model
+    # and declare schema keys (type, format, description) as attributes
+    # https://fastapi.tiangolo.com/reference/openapi/models/?h=model
+    # Update the schema key from `Body_partition` to `partition_paramaters`
+    openapi_schema["components"]["schemas"]["partition_parameters"] = openapi_schema["components"]["schemas"].pop("Body_partition")    
+    # Update the schema title for `partition` post endpoint
+    openapi_schema["components"]["schemas"]["partition_parameters"]["title"] = "Partition Parameters"
+    openapi_schema["components"]["schemas"]["partition_parameters"]["properties"] = {
+        "files": {
+                        "type": "string",
+                        "format": "binary",
+                        "description": "The file to extract",
+                        "required": "true",
+                        "examples": [{
+                            "summary": "File to be partitioned",
+                            "externalValue": "https://github.com/Unstructured-IO/unstructured/blob/98d3541909f64290b5efb65a226fc3ee8a7cc5ee/example-docs/layout-parser-paper.pdf"
+                        }]
+                    },
+                    "strategy": {
+                        "type": "string",
+                        "title": "Strategy",
+                        "description": "The strategy to use for partitioning PDF/image. Options are fast, hi_res, auto. Default: auto",
+                        "examples": ["hi_res"]
+                    },
+                    "gz_uncompressed_content_type": {
+                        "type": "string",
+                        "title": "Uncompressed Content Type",
+                        "description": "If file is gzipped, use this content type after unzipping",
+                        "examples": ["application/pdf"]
+                    },
+                    "output_format": {
+                        "type": "string",
+                        "title": "Output Format",
+                        "description": "The format of the response. Supported formats are application/json and text/csv. Default: application/json.",
+                        "examples": ["application/json"]
+                    },
+                    "coordinates": {
+                        "type": "boolean",
+                        "title": "Coordinates",
+                        "description": "If true, return coordinates for each element. Default: false"
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "title": "Encoding",
+                        "description": "The encoding method used to decode the text input. Default: utf-8",
+                        "examples": ["utf-8"]
+                    },
+                    "hi_res_model_name": {
+                        "type": "string",
+                        "title": "Hi Res Model Name",
+                        "description": "The name of the inference model used when strategy is hi_res",
+                        "examples": ["yolox"]
+                    },
+                    "include_page_breaks": {
+                        "type": "boolean",
+                        "title": "Include Page Breaks",
+                        "description": "If True, the output will include page breaks if the filetype supports it. Default: false"
+                    },
+                    "languages": {
+                        "items": {
+                            "type": "string",
+                            "examples": ["eng"]
+                        },
+                        "type": "array",
+                        "title": "OCR Languages",
+                        "default": [],
+                        "description": "The languages present in the document, for use in partitioning and/or OCR",
+                        "examples": ["[eng]"]
+                    },
+                    "pdf_infer_table_structure": {
+                        "type": "boolean",
+                        "title": "Pdf Infer Table Structure",
+                        "description": "If True and strategy=hi_res, any Table Elements extracted from a PDF will include an additional metadata field, 'text_as_html', where the value (string) is a just a transformation of the data into an HTML <table>."
+                    },
+                    "skip_infer_table_types": {
+                        "items": {
+                            "type": "string",
+                            "examples": ["pdf"]
+                        },
+                        "type": "array",
+                        "title": "Skip Infer Table Types",
+                        "description": "The document types that you want to skip table extraction with. Default: ['pdf', 'jpg', 'png']"
+                    },
+                    "xml_keep_tags": {
+                        "type": "boolean",
+                        "title": "Xml Keep Tags",
+                        "description": "If True, will retain the XML tags in the output. Otherwise it will simply extract the text from within the tags. Only applies to partition_xml."
+                    },
+                    "chunking_strategy": {
+                        "type": "string",
+                        "title": "Chunking Strategy",
+                        "description": "Use one of the supported strategies to chunk the returned elements. Currently supports: by_title",
+                        "examples": ["by_title"]
+                    },
+                    "multipage_sections": {
+                        "type": "boolean",
+                        "title": "Multipage Sections",
+                        "description": "If chunking strategy is set, determines if sections can span multiple sections. Default: true"
+                    },
+                    "combine_under_n_chars": {
+                        "type": "integer",
+                        "title": "Combine Under N Chars",
+                        "description": "If chunking strategy is set, combine elements until a section reaches a length of n chars. Default: 500",
+                        "examples": [500]
+                    },
+                    "new_after_n_chars": {
+                        "type": "integer",
+                        "title": "New after n chars",
+                        "description": "If chunking strategy is set, cut off new sections after reaching a length of n chars (soft max). Default: 1500",
+                        "examples": [1500]
+                    },
+                    "max_characters": {
+                        "type": "integer",
+                        "title": "Max Characters",
+                        "description": "If chunking strategy is set, cut off new sections after reaching a length of n chars (hard max). Default: 1500",
+                        "examples": [1500]
+                    }}
+
+    # TODO: Similarly, create an Elements model
+    # https://fastapi.tiangolo.com/reference/openapi/models/?h=model
+    # Add Elements schema
+    openapi_schema["components"]["schemas"]["Elements"] = {
+                "type": "array",
+                "items":{
+                    "Element":{
+                        "type":"object",
+                        "properties": {
+                            "type": {},
+                            "element_id": {},
+                            "metadata": {},
+                            "text": {}}}}}
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

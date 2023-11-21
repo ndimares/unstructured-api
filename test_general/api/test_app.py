@@ -19,38 +19,60 @@ import tempfile
 MAIN_API_ROUTE = "general/v0/general"
 
 
+# Tests pertaining to
+# comparing the target api spec against the spec created by FastAPI
+# then run `PYTHONPATH=. pytest -vv test_general/api/test_app.py::test_openapi_spec`
+# to run this specific test
+# This can be helpful as you update the API
+
+# The test saves the FastAPI-generated spec as `fastapi-oas.json` within the test directory
+# and compares it to `target-oas.json` (which is a copy of the manually customized `openapi.json`)
+# updated with the `example` key to `examples` as per the documentation re: `example` deprecation
+# https://github.com/tiangolo/fastapi/blob/ac93277d3b506f4076aee1af6ae5a86406f545c6/fastapi/params.py#L74
+
 import json
+
+def save_openapi_to_json():
+    """Save OpenAPI spec to JSON"""
+
+    # Will either create or update the `fastapi-oas.json` file
+    with open("test_general/api/fastapi-oas.json", "w", encoding="utf-8") as json_file:
+        json.dump(
+            app.openapi(),
+            json_file,
+            indent=2,
+        )
 
 def test_openapi_spec():
 
-    # the file to be converted to 
-    # json format
+    save_openapi_to_json()
+
+    # the files to be converted to json format
     target_oas = 'test_general/api/target-oas.json'
     fastapi_oas = 'test_general/api/fastapi-oas.json'
 
-    # dictionary where the lines from
-    # text will be stored
-    # target_oas_dict = {}
-    # fastapi_oas_dict = {}
-
-    # open file
-    # get json
-
+    # dictionaries where the lines from text will be stored
     with open(target_oas) as file:
         target_oas_dict = json.load(file)
 
     with open(fastapi_oas) as file:
         fastapi_oas_dict = json.load(file)
 
-    print(target_oas_dict)
-
-    # assert target_oas_dict == fastapi_oas_dict
     assert target_oas_dict['info']['summary'] == fastapi_oas_dict['info']['summary']
     assert target_oas_dict['servers'] == fastapi_oas_dict['servers']
     assert target_oas_dict['x-speakeasy-retries'] == fastapi_oas_dict['x-speakeasy-retries']
     assert target_oas_dict['security'] == fastapi_oas_dict['security']
     assert target_oas_dict['tags'] == fastapi_oas_dict['tags']
-
+    assert target_oas_dict['paths']['/general/v0/general']['post']['tags'] == fastapi_oas_dict['paths']['/general/v0/general']['post']['tags']
+    assert target_oas_dict['paths']['/general/v0/general']['post']['x-speakeasy-name-override'] == fastapi_oas_dict['paths']['/general/v0/general']['post']['x-speakeasy-name-override']
+    assert target_oas_dict['components']['securitySchemes']['ApiKeyAuth'] == fastapi_oas_dict['components']['securitySchemes']['ApiKeyAuth']
+    assert target_oas_dict['components']['schemas']['Elements'] == fastapi_oas_dict['components']['schemas']['Elements']
+    assert target_oas_dict["paths"]["/general/v0/general"]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"] == fastapi_oas_dict["paths"]["/general/v0/general"]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"]
+    assert target_oas_dict["paths"]["/general/v0/general"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == fastapi_oas_dict["paths"]["/general/v0/general"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    assert "partition_parameters" in fastapi_oas_dict["components"]["schemas"]
+    assert fastapi_oas_dict["components"]["schemas"]["partition_parameters"]["title"] == "Partition Parameters"
+    assert target_oas_dict["components"]["schemas"]["Elements"] == fastapi_oas_dict["components"]["schemas"]["Elements"]
+    assert target_oas_dict["components"]["schemas"]["partition_parameters"] == fastapi_oas_dict["components"]["schemas"]["partition_parameters"]
 
 
 def test_general_api_health_check():

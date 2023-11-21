@@ -11,6 +11,10 @@ import json
 import logging
 import zipfile
 
+from pydantic import BaseModel, Field
+
+from  fastapi.openapi.models import Schema
+
 # External Package Imports
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
@@ -38,6 +42,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from starlette.datastructures import Headers
 from starlette.types import Send
 import secrets
+from fastapi.routing import APIRoute
 
 # Unstructured Imports
 from unstructured.partition.auto import partition
@@ -48,9 +53,14 @@ from unstructured.staging.base import (
 )
 from unstructured_inference.models.chipper import MODEL_TYPES as CHIPPER_MODEL_TYPES
 
+def custom_generate_unique_id_function(route: APIRoute) -> str:
+    return "partition"
+
 
 app = FastAPI()
-router = APIRouter()
+router = APIRouter(
+    tags=["general"],
+    )
 
 
 def is_expected_response_type(media_type, response_type):
@@ -237,7 +247,7 @@ class ChipperMemoryProtection:
         global IS_CHIPPER_PROCESSING
         if IS_CHIPPER_PROCESSING:
             # Log here so we can track how often it happens
-            logger.error("Chipper is already is use")
+            logger.error("Chipper is already in use")
             raise HTTPException(
                 status_code=503, detail="Server is under heavy load. Please try again later."
             )
@@ -634,10 +644,11 @@ def ungz_file(file: UploadFile, gz_uncompressed_content_type=None) -> UploadFile
         headers=Headers({"content-type": return_content_type(filename)}),
     )
 
+schema = {"title": "test"}
 
-@router.post("/general/v0/general")
-@router.post("/general/v0.0.57/general")
-def partition_parameters(
+@router.post("/general/v0/general", summary="Pipeline 1", operation_id="partition", openapi_extra={"x-speakeasy-name-override": "partition"})
+@router.post("/general/v0.0.58/general", include_in_schema=False)
+def pipeline_1(
     request: Request,
     gz_uncompressed_content_type: Optional[str] = Form(default=None),
     files: Union[List[UploadFile], None] = File(default=None),
@@ -764,6 +775,8 @@ def partition_parameters(
             detail='Request parameter "files" is required.\n',
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+
+
 
 
 app.include_router(router)
